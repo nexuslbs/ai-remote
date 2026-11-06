@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "name": "ai (remote)",
+      "uri": "vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai"
+    }
+  ],
+  "settings": {
+    "remote.SSH.remotePlatform": {
+      "nexus-ai": "linux"
+    },
+    "remote.SSH.useLocalServer": true,
+    "remote.SSH.connectTimeout": 45,
+    "remote.SSH.showLoginTerminal": true,
+    "git.openRepositoryInParentFolders": "always",
+    "files.watcherExclude": {
+      "**/results/**": true,
+      "**/.git/objects/**": true
+    },
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "python.defaultInterpreterPath": "/usr/bin/python3"
+  }
+}

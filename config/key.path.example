@@ -1,0 +1,12 @@
+# Copy to config/key.path (git-ignored) and put the ABSOLUTE path of the
+# PRIVATE key that authenticates to the remote machine.
+#
+# The key itself is NEVER committed - only this pointer file, which is
+# git-ignored too. A leading ~ is expanded by scripts/setup.sh.
+#
+# Generate a dedicated pair (do not reuse other keys):
+#   ssh-keygen -t ed25519 -a 100 -C "vscode@$(hostname)" -f ~/.ssh/id_ed25519_nexus_ai
+#   ssh-copy-id -i ~/.ssh/id_ed25519_nexus_ai.pub <user>@<host>
+#
+# Example:
+~/.ssh/id_ed25519_nexus_ai
