@@ -17,10 +17,10 @@ fi
 ips="$(git grep -nEI "$IP_PATTERN" -- . ':!scripts/check-no-secrets.sh' ':!.github/' 2>/dev/null \
       | grep -vE '127\.0\.0\.1|0\.0\.0\.0|255\.255\.255|203\.0\.113\.|1\.2\.3\.4|21[0-9]\.[0-9]' || true)"
 if [ -n "$ips" ]; then
-  echo "BLOCKED: literal IP address committed (keep it in config/host.env, git-ignored):"; echo "$ips"; fail=1
+  echo "BLOCKED: literal IP address committed (keep it in config/ssh_config, git-ignored):"; echo "$ips"; fail=1
 fi
 
-for f in config/host.env config/key.path config/ssh_config config/id_ed25519 config/id_ecdsa config/id_rsa; do
+for f in config/ssh_config config/id_ed25519 config/id_ecdsa config/id_rsa; do
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     echo "BLOCKED: $f is tracked by git but must be non-versioned"; fail=1
   fi

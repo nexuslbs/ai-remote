@@ -18,8 +18,6 @@ there — nothing is copied into `~/.ssh` and nothing is committed.
   tests/commands and use Source Control **on the remote machine**, not on your laptop.
 - `config/ssh_config.example` — the ssh stanza (host, user, port, key path) you fill in once.
   The key itself sits next to it at `config/id_ed25519`.
-- Optional `scripts/setup.sh` — only for people who prefer one command over editing two files.
-  It is **not required**: everything works from VS Code + the two `config/` files.
 
 ---
 
@@ -106,13 +104,6 @@ VS Code on Windows shells out to the **Windows OpenSSH client**, which reads
 - **Do not** set this up from **WSL**: a Linux-side `~/.ssh/config` is not the file VS Code
   on Windows reads.
 
-`scripts/setup.sh` is a shortcut that does all of the above (alias fragment, `Include` line,
-`icacls`, live connection test) when run from **Git-Bash**:
-
-```bash
-./scripts/setup.sh && ./scripts/open.sh
-```
-
 ---
 
 ## File layout
@@ -120,17 +111,11 @@ VS Code on Windows shells out to the **Windows OpenSSH client**, which reads
 ```
 ai-remote.code-workspace     committed   the VS Code entry point (alias-based, no IP)
 .vscode/extensions.json      committed   recommends the official Remote-SSH extension
-config/ssh_config.example    committed   template: the ssh stanza you fill in
-config/host.env.example      committed   template: host / user / port (used by setup.sh)
-config/key.path.example      committed   template: OPTIONAL key-path override (setup.sh)
-scripts/setup.sh             committed   OPTIONAL: renders the alias into ~/.ssh/config.d/
-scripts/open.sh              committed   OPTIONAL: installs Remote-SSH if needed, opens the folder
-scripts/check-no-secrets.sh  committed   CI/pre-commit guard: no keys, tokens or literal IPs
+config/ssh_config.example    committed   the only template: the ssh stanza you fill in
+scripts/check-no-secrets.sh  committed   CI guard: no keys, tokens or literal IPs
 docs/SECURITY.md             committed   threat model and the "what stays local" contract
 config/ssh_config            GIT-IGNORED real stanza: address + absolute key path
-config/host.env              GIT-IGNORED real machine address (setup.sh path)
 config/id_ed25519            GIT-IGNORED the private key itself — read in place by ssh
-config/key.path              GIT-IGNORED optional: path of a key kept elsewhere
 ```
 
 ---
@@ -186,8 +171,8 @@ Ubuntu, glibc 2.4x):
 Read [`docs/SECURITY.md`](docs/SECURITY.md). Short version:
 
 - No private key, token, password or literal IP address is committed. CI enforces it.
-- `setup.sh` aborts if the key file it resolved is tracked by git, and restricts the key to
-  your user (POSIX `600` / Windows `icacls`).
+- `scripts/check-no-secrets.sh` (run by CI on every push) fails if a private key, a token
+  pattern, a literal IP, or a tracked `config/ssh_config` / `config/id_ed25519` appears.
 - The key you use should be **dedicated** to this workflow so it can be revoked on its own.
 
 ## License

@@ -7,16 +7,15 @@ recipe, not a credential store.
 
 | Item | In git? | Where |
 |---|---|---|
-| SSH alias definition (template logic) | yes | `scripts/setup.sh` |
+| SSH stanza template (no address, no key) | yes | `config/ssh_config.example` |
 | `.code-workspace` entry point (uses the alias) | yes | `ai-remote.code-workspace` |
 | Machine address (IP / DNS) | **no** | `config/ssh_config` (git-ignored, referenced by your ssh config) |
 | Private key material | **no** | `config/id_ed25519` (git-ignored, ACL-restricted, used **in place** by ssh) |
-| Optional key-location override | **no** | `config/key.path` (git-ignored) |
 | GitHub PAT / token for the remote's git | **never** | credential store **on the remote** |
 
 `scripts/check-no-secrets.sh` fails the build if a private-key block, a common token
 pattern (`ghp_`, `github_pat_`, `gho_`, `AKIA…`, `xox…`, `sk-…`), a literal IPv4 address, or
-a tracked `config/host.env` / `config/key.path` / `config/ssh_config` / `config/id_ed25519` ever appears.
+a tracked `config/ssh_config` / `config/id_ed25519` ever appears.
 
 ## Why the address is not committed
 
@@ -36,15 +35,15 @@ project to a specific piece of infrastructure. Keeping only the *alias* in git m
    ```
    The key lives in `config/` so the installer can point ssh at it without copying
    anything: `config/id_ed25519*` and `config/*.pem|key|ppk` are git-ignored, and
-   `setup.sh` **aborts** if the key file it resolved is tracked by git.
+   `scripts/check-no-secrets.sh` **fails** if a key file ever becomes tracked by git.
 2. **Never** paste a private key into an issue, a PR, a gist or a chat — even "temporarily".
    If it leaks, rotate: remove the line from the remote `~/.ssh/authorized_keys`
    immediately; the key is single-purpose so nothing else breaks.
-3. `setup.sh` refuses to run if the key file is missing, tightens POSIX permissions to
-   `600`, and on Windows strips inherited ACLs with `icacls /inheritance:r` so the Windows
-   OpenSSH client accepts a key that sits inside a cloned folder.
-4. `IdentitiesOnly yes` and `PreferredAuthentications publickey` are set in the generated
-   fragment so the client offers only the intended key.
+3. Because the key sits inside a cloned folder, Windows OpenSSH may reject it as "too open".
+   Tighten it once with `icacls "C:\Users\you\ai-remote\config\id_ed25519" /inheritance:r /grant:r "%USERNAME%:F"`
+   (POSIX: `chmod 600 config/id_ed25519`).
+4. `IdentitiesOnly yes` and `PreferredAuthentications publickey` are set in
+   `config/ssh_config` so the client offers only the intended key.
 5. Optional hardening on the remote: restrict the entry with
    `from="<your-ip>",restrict` in `authorized_keys`, or a dedicated non-root user that owns
    the repo directory.
