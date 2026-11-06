@@ -1,9 +1,12 @@
 {
-  // Nothing remote.SSH.* in here on purpose: VS Code resolves the folder URIs below
-  // BEFORE the workspace's own settings exist, so a config path set here is never used
-  // and the remote folder fails with "ENOPRO: No filesystem provider found".
-  // Put the ssh config path in your USER settings, or Include the stanza from
-  // ~/.ssh/config. See README -> Troubleshooting.
+  // Everything that defines the connection lives in this folder: config/ssh_config
+  // (host, user, port, key path) plus config/id_ed25519 (the key, read in place).
+  //
+  // No remote.SSH.* setting here on purpose - it is machine-scoped, so VS Code
+  // ignores it in a workspace file and the remote folder then fails to resolve
+  // ("ENOPRO: No filesystem provider found"). The single pointer VS Code needs is
+  // a User setting ("remote.SSH.configFile" -> config/ssh_config) or one Include
+  // line in ~/.ssh/config. See README -> "The one line VS Code forces".
   "folders": [
     {
       "name": "ai (remote)",
