@@ -1,6 +1,7 @@
 # --- non-versioned, machine-local config (the whole point of this repo) ---
 config/host.env
 config/key.path
+config/ssh_config
 # the private key itself lives here and is used in place by ssh
 config/id_ed25519*
 config/id_ecdsa*

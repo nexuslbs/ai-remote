@@ -1,0 +1,30 @@
+# Copy to config/ssh_config  (git-ignored), then replace the three <...> values.
+#
+# This is the ONLY file that holds your machine address. Nothing here is a
+# credential: the private key stays in this same config/ folder (git-ignored)
+# and is read IN PLACE - it is never copied into ~/.ssh and never committed.
+#
+# Then make your ssh client read this file, once - either
+#   a) one line at the TOP of ~/.ssh/config  (%USERPROFILE%\.ssh\config on Windows)
+#        Include C:/Users/<you>/ai-remote/config/ssh_config
+#   or
+#   b) one VS Code USER setting
+#        "remote.SSH.configFile": "C:/Users/<you>/ai-remote/config/ssh_config"
+#
+# No script to run. Open ai-remote.code-workspace afterwards.
+# Paths: use forward slashes, even on Windows. The alias must stay "nexus-ai"
+# unless you also edit ai-remote.code-workspace.
+
+Host nexus-ai
+    HostName 203.0.113.10
+    User root
+    Port 22
+    IdentityFile "C:/Users/<you>/ai-remote/config/id_ed25519"
+    IdentitiesOnly yes
+    PreferredAuthentications publickey
+    StrictHostKeyChecking accept-new
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    TCPKeepAlive yes
+    ForwardAgent no
+    Compression no

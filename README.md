@@ -2,25 +2,24 @@
 
 Open the **`ai` repository that lives on a remote machine** in VS Code, over SSH, using the
 official [**Remote - SSH**](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh)
-extension — with **zero secrets in this repository**.
+extension — with **zero secrets in this repository and no script to run**.
 
 This repo is only the *how-to-connect* layer. It contains no code, no credentials, no IP
-addresses and no key material. The machine address lives in `config/host.env` and the
-private key itself lives in `config/id_ed25519`; both are **git-ignored** and created by you
-on your own machine. ssh reads that key **in place** — it is never copied into `~/.ssh` and
-never committed.
+addresses and no key material. The machine address and the private key both live in `config/`
+on your machine, **git-ignored**; VS Code's own ssh client reads the key **in place** from
+there — nothing is copied into `~/.ssh` and nothing is committed.
 
 ---
 
 ## What you get
 
-- A `.code-workspace` file that connects to the remote host through an SSH alias and opens
-  `/opt/workspace/ai` directly, so you can browse the repo, edit files, use the terminal,
-  run tests/commands and use Source Control **on the remote machine**, not on your laptop.
-- A one-command installer (`scripts/setup.sh`) that renders the SSH alias from your two
-  local files and wires it into `~/.ssh/config`.
-- A one-command launcher (`scripts/open.sh`) that opens the folder in VS Code through the
-  Remote-SSH extension.
+- `ai-remote.code-workspace` — the entry point. Connects through the `nexus-ai` ssh alias and
+  opens `/opt/workspace/ai`, so you can browse the repo, edit files, use the terminal, run
+  tests/commands and use Source Control **on the remote machine**, not on your laptop.
+- `config/ssh_config.example` — the ssh stanza (host, user, port, key path) you fill in once.
+  The key itself sits next to it at `config/id_ed25519`.
+- Optional `scripts/setup.sh` — only for people who prefer one command over editing two files.
+  It is **not required**: everything works from VS Code + the two `config/` files.
 
 ---
 
@@ -28,73 +27,90 @@ never committed.
 
 **On your machine**
 
-- VS Code (any recent version) + the `code` CLI on `PATH`.
-- `ms-vscode-remote.remote-ssh` (installed automatically by `scripts/open.sh`).
-- An SSH key pair that the remote machine accepts (public half in its `authorized_keys`).
+- VS Code (any recent version). The `code` CLI is convenient but not required.
+- `ms-vscode-remote.remote-ssh` (VS Code offers it when you open the workspace).
+- An SSH key pair the remote machine accepts (public half in its `authorized_keys`).
 
 **On the remote machine**
 
 - `sshd` reachable on the configured port, public-key auth enabled.
-- `glibc` ≥ 2.28 (Ubuntu 20.04+). `uname -sr` / `ldd --version` to check.
+- `glibc` ≥ 2.28 (Ubuntu 20.04+).
 - Outbound HTTPS to `update.code.visualstudio.com` for the first connect (VS Code Server
   download, typically ~130 MB, cached in `~/.vscode-server`).
 - A few hundred MB of RAM free for the VS Code Server process and ~1 GB free disk.
 
 ---
 
-## Quick start
+## Quick start — no script
 
 ```bash
 git clone https://github.com/nexuslbs/ai-remote.git
 cd ai-remote
-
-# 1. tell it where the machine is (git-ignored)
-cp config/host.env.example config/host.env
-$EDITOR config/host.env          # NEXUS_SSH_HOST=<machine ip or dns>, NEXUS_SSH_USER, NEXUS_SSH_PORT
-
-# 2. drop the private key into config/ (git-ignored; ssh uses it in place, no copy in ~/.ssh)
-cp ~/.ssh/id_ed25519 config/id_ed25519
-
-# 3. ONE command: render the SSH alias, wire it into ~/.ssh/config, test the connection
-./scripts/setup.sh
-
-# 4. open /opt/workspace/ai on the remote machine in VS Code
-./scripts/open.sh
 ```
 
-Or, if you prefer the UI: `File → Open Workspace from File…` → `ai-remote.code-workspace`.
+1. **Put your private key in the repo's `config/` folder** (git-ignored, used in place):
+
+   ```bash
+   cp ~/.ssh/id_ed25519 config/id_ed25519
+   # Windows cmd/PowerShell:  copy "%USERPROFILE%\.ssh\id_ed25519" "config\id_ed25519"
+   ```
+
+2. **Create the ssh stanza** and replace the three `<...>` values:
+
+   ```bash
+   cp config/ssh_config.example config/ssh_config
+   $EDITOR config/ssh_config     # HostName, User, IdentityFile (absolute path to config/id_ed25519)
+   ```
+
+3. **Make your ssh client read it** — pick **one**, done once:
+
+   - **a) one line in `~/.ssh/config`** (Windows: `%USERPROFILE%\.ssh\config`), at the top:
+
+     ```
+     Include C:/Users/<you>/ai-remote/config/ssh_config
+     ```
+
+   - **b) one VS Code USER setting** — no `~/.ssh/config` edit at all.
+     *Command Palette → Preferences: Open User Settings (JSON)*:
+
+     ```json
+     "remote.SSH.configFile": "C:/Users/<you>/ai-remote/config/ssh_config"
+     ```
+
+4. **Open the workspace** — double-click `ai-remote.code-workspace`, or
+
+   ```bash
+   code ai-remote.code-workspace
+   ```
+
+VS Code connects as `nexus-ai`, installs VS Code Server on the remote the first time, and
+shows `/opt/workspace/ai` from the remote filesystem.
 
 ---
 
-## Windows (Git-Bash — the supported path)
+## Windows notes
 
 VS Code on Windows shells out to the **Windows OpenSSH client**, which reads
-`%USERPROFILE%\.ssh\config`. Git-Bash's `$HOME` *is* `%USERPROFILE%`, so run the installer
-there: open the repo folder, right-click → **Git Bash Here**, then
+`%USERPROFILE%\.ssh\config`. That is the file the `Include` line of option (a) goes into
+(Git-Bash's `$HOME` *is* `%USERPROFILE%`). Two things matter:
+
+- **Forward slashes** in every path inside the ssh config (`C:/Users/you/...`), never
+  `\c\Users\...`.
+- **Key ACL.** Windows OpenSSH refuses a key that other users can read, and a freshly cloned
+  folder inherits permissions. If you see `Permissions for '...' are too open`, run once:
+
+  ```
+  icacls "C:\Users\you\ai-remote\config\id_ed25519" /inheritance:r /grant:r "%USERNAME%:F"
+  ```
+
+- **Do not** set this up from **WSL**: a Linux-side `~/.ssh/config` is not the file VS Code
+  on Windows reads.
+
+`scripts/setup.sh` is a shortcut that does all of the above (alias fragment, `Include` line,
+`icacls`, live connection test) when run from **Git-Bash**:
 
 ```bash
-cp config/host.env.example config/host.env
-notepad config/host.env                                 # NEXUS_SSH_HOST / NEXUS_SSH_USER / NEXUS_SSH_PORT
-cp "$USERPROFILE/.ssh/id_ed25519" config/id_ed25519      # key stays in config/, git-ignored
-./scripts/setup.sh                                      # alias + ~/.ssh/config + live test
-./scripts/open.sh                                       # or: code --folder-uri "vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai"
-```
-
-What `scripts/setup.sh` does differently on Windows:
-
-- it writes **Windows-style paths** (`C:/Users/you/ai-remote/config/id_ed25519`) into the ssh
-  config via `cygpath`, because the Windows ssh client cannot resolve `/c/Users/...`;
-- it locks the key down with `icacls "<key>" /inheritance:r /grant:r "<you>:F"` — without
-  that, `ssh` rejects a key living inside a cloned folder as *"too open"*;
-- it refuses to run under **WSL** (override with `--force`): the Linux-side `~/.ssh/config`
-  is not the file VS Code on Windows reads.
-
-`./scripts/open.sh` needs the `code` CLI (VS Code → Command Palette → *Shell Command:
-Install 'code' command in PATH*). Without it, open `ai-remote.code-workspace` from the UI, or
-in PowerShell:
-
-```powershell
-code --folder-uri "vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai"
+./scripts/setup.sh && ./scripts/open.sh
 ```
 
 ---
@@ -104,13 +120,15 @@ code --folder-uri "vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai"
 ```
 ai-remote.code-workspace     committed   the VS Code entry point (alias-based, no IP)
 .vscode/extensions.json      committed   recommends the official Remote-SSH extension
-scripts/setup.sh             committed   renders ~/.ssh/config.d/<alias>, tests the connection
-scripts/open.sh              committed   installs Remote-SSH if needed, opens the folder
+config/ssh_config.example    committed   template: the ssh stanza you fill in
+config/host.env.example      committed   template: host / user / port (used by setup.sh)
+config/key.path.example      committed   template: OPTIONAL key-path override (setup.sh)
+scripts/setup.sh             committed   OPTIONAL: renders the alias into ~/.ssh/config.d/
+scripts/open.sh              committed   OPTIONAL: installs Remote-SSH if needed, opens the folder
 scripts/check-no-secrets.sh  committed   CI/pre-commit guard: no keys, tokens or literal IPs
 docs/SECURITY.md             committed   threat model and the "what stays local" contract
-config/host.env.example      committed   template: host / user / port / remote path
-config/key.path.example      committed   template: OPTIONAL key-path override
-config/host.env              GIT-IGNORED real machine address
+config/ssh_config            GIT-IGNORED real stanza: address + absolute key path
+config/host.env              GIT-IGNORED real machine address (setup.sh path)
 config/id_ed25519            GIT-IGNORED the private key itself — read in place by ssh
 config/key.path              GIT-IGNORED optional: path of a key kept elsewhere
 ```
@@ -119,51 +137,46 @@ config/key.path              GIT-IGNORED optional: path of a key kept elsewhere
 
 ## How it works
 
-1. `scripts/setup.sh` reads `config/host.env` + the key in `config/` (default
-   `config/id_ed25519`, or whatever the optional `config/key.path` points at) and writes
-   `~/.ssh/config.d/<alias>`:
+1. `config/ssh_config` defines `Host nexus-ai` with `IdentityFile` pointing at the key inside
+   this repo — `ssh` opens that file directly, so there is no copy to keep in sync:
 
    ```
    Host nexus-ai
-       HostName <from host.env>
-       User <from host.env>
-       Port <from host.env>
-       IdentityFile "<absolute path of config/id_ed25519>"
+       HostName <your machine>
+       User <your user>
+       Port 22
+       IdentityFile "C:/Users/you/ai-remote/config/id_ed25519"
        IdentitiesOnly yes
        PreferredAuthentications publickey
        StrictHostKeyChecking accept-new
    ```
 
-   and prepends `Include ~/.ssh/config.d/nexus-ai` to `~/.ssh/config`.
-
 2. `ai-remote.code-workspace` opens
-   `vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai`. Remote-SSH runs
-   `ssh nexus-ai` with your normal OpenSSH client, so the alias (not an IP, not a key)
-   is the only thing committed. Change the IP later without touching the repo.
+   `vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai`. Remote-SSH runs your normal
+   OpenSSH client, so the alias (not an IP, not a key) is the only thing committed. Change
+   the IP or move the key later without touching the repo.
 
-3. VS Code installs **VS Code Server** on the remote on first connect; the folder you see
-   is `/opt/workspace/ai` on the remote filesystem.
+3. VS Code installs **VS Code Server** on the remote on first connect; the folder you see is
+   `/opt/workspace/ai` on the remote filesystem.
 
-Why an `Include` instead of `remote.SSH.configFile`: `configFile` does not reliably expand
-`${workspaceFolder}`, so pointing it at a repo-relative file is fragile and would require a
-per-user setting anyway. Using the default `~/.ssh/config` means **no user settings at all**
-are needed — clone, run two scripts, done.
+Why the alias and not a literal address: the repo is public, so `user@<ip>:22` in git would
+advertise an SSH endpoint. The alias keeps the address local, and it survives an IP change.
 
 ---
 
 ## Known constraints of the reference host
 
 Measured on the machine this repo was designed for (2 vCPU / 3.8 GB RAM / 38 GB disk,
-Ubuntu 26.04, glibc 2.43):
+Ubuntu, glibc 2.4x):
 
 - **RAM is the binding constraint.** The VS Code Server plus a couple of extensions takes
-  roughly 300–700 MB; keep heavy training runs out of the way while you have a session open,
-  and do not use `/tmp` for scratch (it is a RAM-backed tmpfs on that box).
+  roughly 300–700 MB; keep heavy training runs out of the way while a session is open, and do
+  not use `/tmp` for scratch (it is a RAM-backed tmpfs on that box).
 - **Git credentials are not configured on the remote.** Pull/push from Source Control will
   prompt for a username/password. Use a fine-grained PAT scoped to the target repo
-  (contents: read/write) and let git store it on the *remote* (`git config --global
-  credential.helper store`), or switch the remote's `origin` to SSH with a deploy key.
-  The credential lives on the remote machine — never in this repo.
+  (contents: read/write) and let git store it on the *remote*
+  (`git config --global credential.helper store`), or switch the remote's `origin` to SSH
+  with a deploy key. The credential lives on the remote machine — never in this repo.
 - First connect downloads VS Code Server; subsequent connects are fast.
 
 ---
@@ -173,9 +186,9 @@ Ubuntu 26.04, glibc 2.43):
 Read [`docs/SECURITY.md`](docs/SECURITY.md). Short version:
 
 - No private key, token, password or literal IP address is committed. CI enforces it.
+- `setup.sh` aborts if the key file it resolved is tracked by git, and restricts the key to
+  your user (POSIX `600` / Windows `icacls`).
 - The key you use should be **dedicated** to this workflow so it can be revoked on its own.
-- Keeping the address out of git avoids advertising an SSH endpoint publicly; the repo is
-  public, the infrastructure is not.
 
 ## License
 

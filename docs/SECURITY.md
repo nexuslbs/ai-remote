@@ -9,14 +9,14 @@ recipe, not a credential store.
 |---|---|---|
 | SSH alias definition (template logic) | yes | `scripts/setup.sh` |
 | `.code-workspace` entry point (uses the alias) | yes | `ai-remote.code-workspace` |
-| Machine address (IP / DNS) | **no** | `config/host.env` (git-ignored) |
+| Machine address (IP / DNS) | **no** | `config/ssh_config` (git-ignored, referenced by your ssh config) |
 | Private key material | **no** | `config/id_ed25519` (git-ignored, ACL-restricted, used **in place** by ssh) |
 | Optional key-location override | **no** | `config/key.path` (git-ignored) |
 | GitHub PAT / token for the remote's git | **never** | credential store **on the remote** |
 
 `scripts/check-no-secrets.sh` fails the build if a private-key block, a common token
 pattern (`ghp_`, `github_pat_`, `gho_`, `AKIA…`, `xox…`, `sk-…`), a literal IPv4 address, or
-a tracked `config/host.env` / `config/key.path` / `config/id_ed25519` ever appears.
+a tracked `config/host.env` / `config/key.path` / `config/ssh_config` / `config/id_ed25519` ever appears.
 
 ## Why the address is not committed
 
