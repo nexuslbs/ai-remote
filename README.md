@@ -139,8 +139,29 @@ missing, typo'd, or points at a file that does not exist. Check, in this order:
 4. Command Palette → **Remote-SSH: Connect to Host...**: `nexus-ai` must appear in the list.
    If it does not, VS Code is not reading your file at all (step 1).
 
-Note that a `remote.SSH.*` setting placed **inside** `ai-remote.code-workspace` is ignored by
-VS Code (the setting is machine-scoped) — the pointer must be a User setting or an `Include`.
+Note that a `remote.SSH.*` setting placed **inside** `ai-remote.code-workspace` — or in this
+repo's own `.vscode/settings.json` — is ignored by VS Code, and it is not a bug that a future
+release will fix.
+
+**Why a project folder cannot carry it.** VS Code has only three setting scopes: *User*,
+*Workspace*, *Remote*. There is no fourth "project" scope — a project folder's
+`.vscode/settings.json` **is** the Workspace scope (the docs store "workspace settings at the
+root of the project in a `.vscode` folder"), and a multi-root `.code-workspace` `settings`
+block is the same scope. `remote.SSH.configFile` is declared **machine-scoped**, so it is
+accepted only in User settings (or the Remote machine's own settings) and every
+workspace-scoped value is dropped. VS Code documents the same class of restriction: settings
+that pick a path or executable "can only be defined in user settings and not at workspace
+scope ... VS Code will warn you and then always ignore the values after that"
+([settings docs](https://code.visualstudio.com/docs/configure/settings#_settings-and-security)).
+That is deliberate: a repository must never be able to point your SSH client at a config it
+ships, because `ProxyCommand`/`IdentityFile` in such a file decide where your key is sent.
+
+Only two places work, and both are one-time, path-only:
+
+1. a User setting (the one line above), or a single `Include` in `~/.ssh/config`; or
+2. **no machine state at all** — put the *user settings directory itself* inside this folder
+   with `--user-data-dir` (*Zero-machine-state variant* above), so even the machine-scoped
+   value is a file inside the project.
 
 ### `Permission denied (publickey)`
 
