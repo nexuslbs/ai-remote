@@ -86,6 +86,51 @@ shows `/opt/workspace/ai` from the remote filesystem.
 
 ---
 
+## Troubleshooting
+
+### `ENOPRO: No filesystem provider found for resource 'vscode-remote://...'`
+
+The folder shows greyed-out in the Explorer and cannot be opened. This is a **client-side**
+resolution failure: at the moment the window tried to load the folder, no `vscode-remote`
+filesystem provider existed for `ssh-remote+nexus-ai`. Nothing is wrong on the remote machine.
+
+Usual cause: **a `remote.SSH.*` setting placed in the `.code-workspace` settings.** VS Code has
+to resolve the folder URIs *before* the workspace's own settings exist, so Remote-SSH never
+sees that `configFile`, looks for the `nexus-ai` alias in the default `~/.ssh/config`, does not
+find it, cannot resolve the authority, and registers no provider — hence ENOPRO.
+(`remote.SSH.remotePlatform`, `useLocalServer`, `connectTimeout` are equally useless there.)
+
+Fix — keep every `remote.SSH.*` setting **out of the workspace file**:
+
+1. Make the config path available *before* any workspace loads — either the `Include` line in
+   `~/.ssh/config` (recommended: it also makes `ssh nexus-ai` work from a plain terminal) or
+   `remote.SSH.configFile` in your **User** settings (Command Palette → *Preferences: Open User
+   Settings (JSON)*). Use one mechanism, not both.
+2. Delete `remote.SSH.configFile` / `remote.SSH.remotePlatform` from the `.code-workspace`.
+3. Command Palette → **Developer: Reload Window** (a failed resolution is cached per window),
+   then open the workspace again.
+
+Still greyed? Command Palette → **Remote-SSH: Connect to Host...** → `nexus-ai` (if the alias
+is not in that list, step 1 did not take effect), then *File > Open Workspace from File...* and
+pick `ai-remote.code-workspace`. A window already connected to `nexus-ai` resolves the
+workspace file immediately.
+
+### `Permission denied (publickey)`
+
+The key file is fine; the remote machine does not authorize its public half. Isolate ssh from
+VS Code first:
+
+```bash
+ssh -F config/ssh_config -o BatchMode=yes nexus-ai "echo OK"
+```
+
+- `OK` → ssh is fine, the problem is purely VS Code (see ENOPRO above).
+- `Permission denied (publickey)` → append `config/id_ed25519.pub` to `~/.ssh/authorized_keys`
+  on the remote host (compare with `ssh-keygen -lf config/id_ed25519.pub` first: an account can
+  hold several keys, and it is easy to authorize a different one than the config uses).
+
+---
+
 ## Windows notes
 
 VS Code on Windows shells out to the **Windows OpenSSH client**, which reads

@@ -1,4 +1,9 @@
 {
+  // Nothing remote.SSH.* in here on purpose: VS Code resolves the folder URIs below
+  // BEFORE the workspace's own settings exist, so a config path set here is never used
+  // and the remote folder fails with "ENOPRO: No filesystem provider found".
+  // Put the ssh config path in your USER settings, or Include the stanza from
+  // ~/.ssh/config. See README -> Troubleshooting.
   "folders": [
     {
       "name": "ai (remote)",
@@ -6,12 +11,6 @@
     }
   ],
   "settings": {
-    "remote.SSH.remotePlatform": {
-      "nexus-ai": "linux"
-    },
-    "remote.SSH.useLocalServer": true,
-    "remote.SSH.connectTimeout": 45,
-    "remote.SSH.showLoginTerminal": true,
     "git.openRepositoryInParentFolders": "always",
     "files.watcherExclude": {
       "**/results/**": true,
