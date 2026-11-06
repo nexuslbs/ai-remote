@@ -10,13 +10,13 @@ recipe, not a credential store.
 | SSH alias definition (template logic) | yes | `scripts/setup.sh` |
 | `.code-workspace` entry point (uses the alias) | yes | `ai-remote.code-workspace` |
 | Machine address (IP / DNS) | **no** | `config/host.env` (git-ignored) |
-| Private-key **path** | **no** | `config/key.path` (git-ignored) |
-| Private key material | **never** | your `~/.ssh`, `chmod 600` |
+| Private key material | **no** | `config/id_ed25519` (git-ignored, ACL-restricted, used **in place** by ssh) |
+| Optional key-location override | **no** | `config/key.path` (git-ignored) |
 | GitHub PAT / token for the remote's git | **never** | credential store **on the remote** |
 
 `scripts/check-no-secrets.sh` fails the build if a private-key block, a common token
 pattern (`ghp_`, `github_pat_`, `gho_`, `AKIA…`, `xox…`, `sk-…`), a literal IPv4 address, or
-a tracked `config/host.env` / `config/key.path` ever appears.
+a tracked `config/host.env` / `config/key.path` / `config/id_ed25519` ever appears.
 
 ## Why the address is not committed
 
@@ -31,13 +31,18 @@ project to a specific piece of infrastructure. Keeping only the *alias* in git m
 
 1. **Dedicated key pair.** Do not reuse a key that also has access to other hosts.
    ```bash
-   ssh-keygen -t ed25519 -a 100 -C "vscode@$(hostname)" -f ~/.ssh/id_ed25519_nexus_ai
-   ssh-copy-id -i ~/.ssh/id_ed25519_nexus_ai.pub <user>@<host>
+   ssh-keygen -t ed25519 -a 100 -C "vscode@$(hostname)" -f config/id_ed25519
+   ssh-copy-id -i config/id_ed25519.pub <user>@<host>
    ```
+   The key lives in `config/` so the installer can point ssh at it without copying
+   anything: `config/id_ed25519*` and `config/*.pem|key|ppk` are git-ignored, and
+   `setup.sh` **aborts** if the key file it resolved is tracked by git.
 2. **Never** paste a private key into an issue, a PR, a gist or a chat — even "temporarily".
    If it leaks, rotate: remove the line from the remote `~/.ssh/authorized_keys`
    immediately; the key is single-purpose so nothing else breaks.
-3. `setup.sh` refuses to run if the key file is missing and tightens permissions to `600`.
+3. `setup.sh` refuses to run if the key file is missing, tightens POSIX permissions to
+   `600`, and on Windows strips inherited ACLs with `icacls /inheritance:r` so the Windows
+   OpenSSH client accepts a key that sits inside a cloned folder.
 4. `IdentitiesOnly yes` and `PreferredAuthentications publickey` are set in the generated
    fragment so the client offers only the intended key.
 5. Optional hardening on the remote: restrict the entry with

@@ -1,6 +1,13 @@
 # --- non-versioned, machine-local config (the whole point of this repo) ---
 config/host.env
 config/key.path
+# the private key itself lives here and is used in place by ssh
+config/id_ed25519*
+config/id_ecdsa*
+config/id_rsa*
+config/*.pem
+config/*.key
+config/*.ppk
 
 # --- never commit key material of any kind ---
 *.pem

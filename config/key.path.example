@@ -1,12 +1,16 @@
-# Copy to config/key.path (git-ignored) and put the ABSOLUTE path of the
-# PRIVATE key that authenticates to the remote machine.
+# OPTIONAL override - you normally do NOT need this file.
 #
-# The key itself is NEVER committed - only this pointer file, which is
-# git-ignored too. A leading ~ is expanded by scripts/setup.sh.
+# By default scripts/setup.sh reads the private key straight from
+# config/id_ed25519 (or config/id_ecdsa, config/id_rsa) and points ssh at that
+# file in place. Nothing is copied into ~/.ssh.
 #
-# Generate a dedicated pair (do not reuse other keys):
-#   ssh-keygen -t ed25519 -a 100 -C "vscode@$(hostname)" -f ~/.ssh/id_ed25519_nexus_ai
-#   ssh-copy-id -i ~/.ssh/id_ed25519_nexus_ai.pub <user>@<host>
+# Create config/key.path only if your key lives somewhere else and you do not
+# want to move it. It holds ONE line: the absolute path of the private key.
+# A leading ~ is expanded by scripts/setup.sh. This file is git-ignored.
 #
-# Example:
-~/.ssh/id_ed25519_nexus_ai
+# Generate a dedicated pair inside config/ instead (recommended):
+#   ssh-keygen -t ed25519 -a 100 -C "vscode@$(hostname)" -f config/id_ed25519
+#   ssh-copy-id -i config/id_ed25519.pub <user>@<host>
+#
+# Example (only if you keep the key outside the repo):
+# ~/.ssh/id_ed25519_nexus_ai

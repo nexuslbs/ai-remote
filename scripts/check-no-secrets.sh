@@ -20,7 +20,7 @@ if [ -n "$ips" ]; then
   echo "BLOCKED: literal IP address committed (keep it in config/host.env, git-ignored):"; echo "$ips"; fail=1
 fi
 
-for f in config/host.env config/key.path; do
+for f in config/host.env config/key.path config/id_ed25519 config/id_ecdsa config/id_rsa; do
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     echo "BLOCKED: $f is tracked by git but must be non-versioned"; fail=1
   fi

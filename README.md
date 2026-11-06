@@ -6,8 +6,9 @@ extension — with **zero secrets in this repository**.
 
 This repo is only the *how-to-connect* layer. It contains no code, no credentials, no IP
 addresses and no key material. The machine address lives in `config/host.env` and the
-private-key location lives in `config/key.path`; both are **git-ignored** and created by you
-on your own machine.
+private key itself lives in `config/id_ed25519`; both are **git-ignored** and created by you
+on your own machine. ssh reads that key **in place** — it is never copied into `~/.ssh` and
+never committed.
 
 ---
 
@@ -51,18 +52,50 @@ cd ai-remote
 cp config/host.env.example config/host.env
 $EDITOR config/host.env          # NEXUS_SSH_HOST=<machine ip or dns>, NEXUS_SSH_USER, NEXUS_SSH_PORT
 
-# 2. tell it where your private key is (git-ignored)
-cp config/key.path.example config/key.path
-$EDITOR config/key.path          # absolute path, e.g. ~/.ssh/id_ed25519_nexus_ai
+# 2. drop the private key into config/ (git-ignored; ssh uses it in place, no copy in ~/.ssh)
+cp ~/.ssh/id_ed25519 config/id_ed25519
 
-# 3. render the SSH alias and test the connection
+# 3. ONE command: render the SSH alias, wire it into ~/.ssh/config, test the connection
 ./scripts/setup.sh
 
-# 4. open the remote repo in VS Code
+# 4. open /opt/workspace/ai on the remote machine in VS Code
 ./scripts/open.sh
 ```
 
 Or, if you prefer the UI: `File → Open Workspace from File…` → `ai-remote.code-workspace`.
+
+---
+
+## Windows (Git-Bash — the supported path)
+
+VS Code on Windows shells out to the **Windows OpenSSH client**, which reads
+`%USERPROFILE%\.ssh\config`. Git-Bash's `$HOME` *is* `%USERPROFILE%`, so run the installer
+there: open the repo folder, right-click → **Git Bash Here**, then
+
+```bash
+cp config/host.env.example config/host.env
+notepad config/host.env                                 # NEXUS_SSH_HOST / NEXUS_SSH_USER / NEXUS_SSH_PORT
+cp "$USERPROFILE/.ssh/id_ed25519" config/id_ed25519      # key stays in config/, git-ignored
+./scripts/setup.sh                                      # alias + ~/.ssh/config + live test
+./scripts/open.sh                                       # or: code --folder-uri "vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai"
+```
+
+What `scripts/setup.sh` does differently on Windows:
+
+- it writes **Windows-style paths** (`C:/Users/you/ai-remote/config/id_ed25519`) into the ssh
+  config via `cygpath`, because the Windows ssh client cannot resolve `/c/Users/...`;
+- it locks the key down with `icacls "<key>" /inheritance:r /grant:r "<you>:F"` — without
+  that, `ssh` rejects a key living inside a cloned folder as *"too open"*;
+- it refuses to run under **WSL** (override with `--force`): the Linux-side `~/.ssh/config`
+  is not the file VS Code on Windows reads.
+
+`./scripts/open.sh` needs the `code` CLI (VS Code → Command Palette → *Shell Command:
+Install 'code' command in PATH*). Without it, open `ai-remote.code-workspace` from the UI, or
+in PowerShell:
+
+```powershell
+code --folder-uri "vscode-remote://ssh-remote+nexus-ai/opt/workspace/ai"
+```
 
 ---
 
@@ -76,16 +109,18 @@ scripts/open.sh              committed   installs Remote-SSH if needed, opens th
 scripts/check-no-secrets.sh  committed   CI/pre-commit guard: no keys, tokens or literal IPs
 docs/SECURITY.md             committed   threat model and the "what stays local" contract
 config/host.env.example      committed   template: host / user / port / remote path
-config/key.path.example      committed   template: absolute path of the private key
+config/key.path.example      committed   template: OPTIONAL key-path override
 config/host.env              GIT-IGNORED real machine address
-config/key.path              GIT-IGNORED real private-key path
+config/id_ed25519            GIT-IGNORED the private key itself — read in place by ssh
+config/key.path              GIT-IGNORED optional: path of a key kept elsewhere
 ```
 
 ---
 
 ## How it works
 
-1. `scripts/setup.sh` reads `config/host.env` + `config/key.path` and writes
+1. `scripts/setup.sh` reads `config/host.env` + the key in `config/` (default
+   `config/id_ed25519`, or whatever the optional `config/key.path` points at) and writes
    `~/.ssh/config.d/<alias>`:
 
    ```
@@ -93,7 +128,7 @@ config/key.path              GIT-IGNORED real private-key path
        HostName <from host.env>
        User <from host.env>
        Port <from host.env>
-       IdentityFile "<from key.path>"
+       IdentityFile "<absolute path of config/id_ed25519>"
        IdentitiesOnly yes
        PreferredAuthentications publickey
        StrictHostKeyChecking accept-new
